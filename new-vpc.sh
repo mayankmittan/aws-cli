@@ -53,5 +53,9 @@ aws ec2 create-security-group --group-name Natsecurity --description "NAT_securi
 SGNat='egrep GroupId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
 aws ec2 authorize-security-group-ingress \
   --group-id $SGNat \
-  --ip-permissions 
+  --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp='$CIDRPublic'}]'
+  
+aws ec2 authorize-security-group-ingress \
+  --group-id $SGNat \
+  --ip-permissions Ip
  
