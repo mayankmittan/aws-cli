@@ -1,28 +1,28 @@
-CIDR=11.0.0.0/16
+CIDR=172.16.0.0/16
 aws ec2 create-vpc --cidr-block $CIDR > aws_output.txt
 cat aws_output.txt
 vpcid='egrep VpcID aws_output.txt | cut -d":" -f2 | sed 's/"//g' |sed 's/.//g' |cut -d" " -f2'
-CIDRPublic=11.0.1.0/24
-CIDRPrivate=11.0.2.0/24
+CIDRPublic=172.16.0.0/24
+CIDRPrivate=172.16.1.0/24
 aws ec2 create-tags \
   --resources "$vpcid" \
-  --tags Key=Name,Value="auto_vpc"
+  --tags Key=Name,Value="testing"
   
-aws ec2 create-subnet --vpc-id $vpcid --cidr-block $CIDRPublic --availibility-zone ap-south-1b > aws_output.txt
+aws ec2 create-subnet --vpc-id $vpcid --cidr-block $CIDRPublic --availibility-zone ap-northeast-3 > aws_output.txt
 cat aws_output.txt
 pubsubnetid='egrep SubnetID aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
 aws ec2 create-subnet --vpc-id $vpcid --cidr-block $CIDRPrivate --availibility-zone ap-south-1a > aws_output.txt
 cat aws_output.txt
 aws ec2 create-tags \
     --resources "$pubsubnetid"
-    --tags Key=Name,Value="pub_subnet"
+    --tags Key=Name,Value="public"
     
 privsubnetid='egrep SubnetId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
 aws ec2 create-internet-gateway > aws_output.txt
 cat aws_output.txt
 aws ec2 create-tags \
   --resources "$privsubnetid" \
-  --tags Key=Name,Value=priv_subnet"
+  --tags Key=Name,Value=private"
 
 IGW='egrep InternetGatewayId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
 aws ec2 attach-internet-gateway --vpc-id $vpcid --internet-gateway-id $IGW
@@ -49,7 +49,7 @@ EIP='egrep AllocationId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.
 sleep 20
 
 echo "creating security group for NAT instance"
-aws ec2 create-security-group --group-name Natsecurity --description "NAT_security_group" --vpc-id "$vpcid" > aws_output.txt
+aws ec2 create-security-group --group-name Natsecurity --description "Nat-1" --vpc-id "$vpcid" > aws_output.txt
 SGNat='egrep GroupId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
 aws ec2 authorize-security-group-ingress \
   --group-id $SGNat \
@@ -124,11 +124,11 @@ aws ec2 create-security-group --groupname Prvsecurity --description "Private sec
 SGPrv='egrep GroupId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
 aws ec2 authorize-security-group-ingress \
   --group-id $SGPrv \
-  --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp= 11.0.2.0/24}]'
+  --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp= 172.16.1.0/24}]'
 
 aws ec2 authorize-security-group-ingress \
   --group-id $SGPrv \
-  --ip-permissions IpProtocol=tcp,FromPort=8080,ToPort=8080,IpRanges='[{CidrIp= 11.0.2.0/24}]'
+  --ip-permissions IpProtocol=tcp,FromPort=8080,ToPort=8080,IpRanges='[{CidrIp= 172.16.1.0/24}]'
   
 aws ec2 run-instance --image-id ami-014bb360092e01bd2 --count 1 --instance-type t2.micro --linuxkey --testing --subnet-id $privsubnetid --security-group-ids $SGNat > aws_output.txt
 cat aws_output.txt
@@ -137,4 +137,4 @@ aws ec2 create-tags \
   --resources "$privins" \
   --tags Key=Name,Value="private_ins"
 aws ec2 wait system-status-ok \
-  --instance
+cat aws_output.txt
