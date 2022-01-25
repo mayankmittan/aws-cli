@@ -1,3 +1,4 @@
+#!/bin/bash
 CIDR=172.16.0.0/16
 aws ec2 create-vpc --cidr-block $CIDR > aws_output.txt
 cat aws_output.txt
