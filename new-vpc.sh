@@ -57,5 +57,22 @@ aws ec2 authorize-security-group-ingress \
   
 aws ec2 authorize-security-group-ingress \
   --group-id $SGNat \
-  --ip-permissions Ip
+  --ip-permissions IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges='[{CidrIp='$CIDRPrivate'}]'
+  
+ aws ec2 authorize-security-group-ingress \
+  --group-id $SGNat \
+  --ip-permissions IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges='[{CidrIp='$CIDRPrivate'}]'
+  
+ aws ec2 authorize-security-group-ingress \
+  --group-id $SGNat \
+  --ip-permissions IpProtocol=icmp,FromPort=-1,ToPort=-1,IpRanges='[{CidrIp= 0.0.0.0/0}]'
  
+ aws ec2 authorize-security-group-engress --group-id $SGNat --ip-permissions IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges='[{CidrIp=0.0.0.0/0}]'
+ aws ec2 authorize-security-group-engress --group-id $SGNat --ip-permissions IpProtocol=tcp,FromPort=443,ToPort=443,IpRanges='[{CidrIp=0.0.0.0/0}]'
+ aws ec2 authorize-security-group-engress --group-id $SGNat --ip-permissions IpProtocol=tcp,FromPort=22,ToPort=22,IpRanges='[{CidrIp=0.0.0.0/0}]'
+ aws ec2 authorize-security-group-engress --group-id $SGNat --ip-permissions IpProtocol=icmp,FromPort=-1,ToPort=-1,IpRanges='[{CidrIp= '$CIDRrivate'}]'
+
+aws ec2 run-instances --image-id ami-000ae30fd003db802 --count 1 --instance-type t2.micro --key-name testing --subnet-id $pubsubnetid --security-   -ids $SGNat > aws_output.txt
+cat aws_output.txt
+
+NAT='egrep InstanceId aws_output.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/.//g' | cut -d" " -f2'
