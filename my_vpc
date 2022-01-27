@@ -1,0 +1,101 @@
+AWS_REGION="ap-south-1"
+availabilityZone="ap-south-1a"
+
+
+CIDR=1.0.0.0/16
+aws ec2 create-vpc --cidr-block $CIDR > aws1.txt
+vpcid=`egrep VpcId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $vpcid --tags Key=Name,Value="myvpc" >aws1.txt
+cat aws1.txt
+CIDRPublic=1.0.1.0/24
+CIDRPrivate=1.0.2.0/24
+aws ec2 create-subnet --vpc-id $vpcid --cidr-block $CIDRPublic --availability-zone ap-south-1a > aws1.txt
+cat aws1.txt
+pubsubnetid=`egrep SubnetId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $pubsubnetid --tags Key=Name,Value="publicsubnet" > aws1.txt
+cat aws1.txt
+
+aws ec2 create-subnet --vpc-id $vpcid --cidr-block $CIDRPrivate --availability-zone ap-south-1b > aws1.txt
+cat aws1.txt
+privsubnetid=`egrep SubnetId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2` > aws1.txt
+aws ec2 create-tags --resources $privsubnetid --tags Key=Name,Value="privatesubnet" > aws1.txt
+cat aws1.txt
+
+aws ec2 create-internet-gateway > aws1.txt
+cat aws1.txt
+IGW=`egrep InternetGatewayId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $IGW --tags Key=Name,Value="igw" > aws1.txt
+cat aws1.txt
+
+aws ec2 attach-internet-gateway --vpc-id $vpcid --internet-gateway-id $IGW
+
+aws ec2 create-route-table --vpc-id $vpcid > aws1.txt
+cat aws1.txt
+RoutePublic=`egrep RouteTableId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $RoutePublic --tags Key=Name,Value="publicroute" > aws1.txt
+cat aws1.txt
+
+aws ec2 create-route-table --vpc-id $vpcid > aws1.txt
+cat aws1.txt
+RoutePrivate=`egrep RouteTableId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $RoutePrivate --tags Key=Name,Value="privateroute" > aws1.txt
+cat aws1.txt
+
+aws ec2 associate-route-table --route-table-id $RoutePublic --subnet-id $pubsubnetid
+aws ec2 associate-route-table --route-table-id $RoutePrivate --subnet-id $privsubnetid
+
+aws ec2 create-route --route-table-id $RoutePublic --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW
+
+aws ec2 create-security-group --group-name public --description "My public security group" --vpc-id $vpcid > aws1.txt
+cat aws1.txt
+SGPub=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $SGPub --tags Key=Name,Value="public" > aws1.txt
+cat aws1.txt
+
+curl ipinfo.io/ip > aws1.txt
+MyIp=`egrep ip  aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+
+aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 22 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 443 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 80 --cidr $MyIp/32
+
+aws ec2 create-key-pair --key-name test
+
+aws ec2 run-instances --image-id ami-0af25d0df86db00c1 --count 1 --instance-type t2.micro --key-name test --security-group-ids $SGPub --subnet-id $pubsubnetid > aws1.txt
+cat aws1.txt
+pubins=`egrep InstanceId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $pubins --tags Key=Name,Value="public_instance" > aws1.txt
+cat aws1.txt
+
+aws ec2 create-security-group --group-name private --description "My private security group" --vpc-id $vpcid > aws1.txt
+SGPriv=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $SGPriv --tags Key=Name,Value="private" > aws1.txt
+cat aws1.txt
+
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 22 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 8080 --source-group $SGPub
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 80 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol all --port all --source-group $SGNat
+
+aws ec2 run-instances --image-id ami-0af25d0df86db00c1 --count 1 --instance-type t2.micro --key-name test --security-group-ids $SGPriv --subnet-id $privsubnetid > aws1.txt
+cat aws1.txt
+privins=`egrep InstanceId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $privins --tags Key=Name,Value="private_instance" > aws1.txt
+
+aws ec2 create-security-group --group-name nat --description "My nat security group" --vpc-id $vpcid > aws1.txt
+cat aws1.txt
+SGNat=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $SGNat --tags Key=Name,Value="nat" > aws1.txt
+cat aws1.txt
+aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 80 --cidr $CIDRPublic
+aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 22 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 443 --cidr $CIDRPrivate
+aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol icmp --port -1 --cidr $CIDRPrivate
+
+aws ec2 run-instances --image-id ami-00999044593c895de --count 1 --instance-type t2.micro --key-name test --security-group-ids $SGNat --subnet-id $pubsubnetid > aws1.txt
+
+cat aws1.txt
+natins=`egrep InstanceId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
+aws ec2 create-tags --resources $natins --tags Key=Name,Value="nat_instance" > aws1.txt
+cat aws1.txt
+aws ec2 modify-instance-attribute --instance-id $natins --no-source-dest-check
