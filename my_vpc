@@ -1,6 +1,6 @@
 AWS_REGION="ap-south-1"
 availabilityZone="ap-south-1a"
-
+myip=3.145.156.245
 
 CIDR=1.0.0.0/16
 aws ec2 create-vpc --cidr-block $CIDR > aws1.txt
@@ -20,6 +20,7 @@ cat aws1.txt
 privsubnetid=`egrep SubnetId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2` > aws1.txt
 aws ec2 create-tags --resources $privsubnetid --tags Key=Name,Value="privatesubnet" > aws1.txt
 cat aws1.txt
+
 
 aws ec2 create-internet-gateway > aws1.txt
 cat aws1.txt
@@ -52,12 +53,9 @@ SGPub=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cu
 aws ec2 create-tags --resources $SGPub --tags Key=Name,Value="public" > aws1.txt
 cat aws1.txt
 
-curl ipinfo.io/ip > aws1.txt
-MyIp=`egrep ip  aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
-
-aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 22 --cidr $MyIp/32
-aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 443 --cidr $MyIp/32
-aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 80 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 22 --cidr $myip/32
+aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 443 --cidr $myip/32
+aws ec2 authorize-security-group-ingress --group-id $SGPub --protocol tcp --port 80 --cidr $myip/32
 
 aws ec2 create-key-pair --key-name test
 
@@ -72,15 +70,14 @@ SGPriv=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | c
 aws ec2 create-tags --resources $SGPriv --tags Key=Name,Value="private" > aws1.txt
 cat aws1.txt
 
-aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 22 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 22 --cidr 0.0.0.0/0
 aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 8080 --source-group $SGPub
-aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 80 --cidr $MyIp/32
-aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol all --port all --source-group $SGNat
 
 aws ec2 run-instances --image-id ami-0af25d0df86db00c1 --count 1 --instance-type t2.micro --key-name test --security-group-ids $SGPriv --subnet-id $privsubnetid > aws1.txt
 cat aws1.txt
 privins=`egrep InstanceId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cut -d" " -f2`
 aws ec2 create-tags --resources $privins --tags Key=Name,Value="private_instance" > aws1.txt
+cat aws1.txt
 
 aws ec2 create-security-group --group-name nat --description "My nat security group" --vpc-id $vpcid > aws1.txt
 cat aws1.txt
@@ -88,7 +85,7 @@ SGNat=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cu
 aws ec2 create-tags --resources $SGNat --tags Key=Name,Value="nat" > aws1.txt
 cat aws1.txt
 aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 80 --cidr $CIDRPublic
-aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 22 --cidr $MyIp/32
+aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 22 --cidr 0.0.0.0/0
 aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 443 --cidr $CIDRPrivate
 aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol icmp --port -1 --cidr $CIDRPrivate
 
