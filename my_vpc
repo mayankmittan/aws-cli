@@ -70,7 +70,11 @@ SGPriv=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | c
 aws ec2 create-tags --resources $SGPriv --tags Key=Name,Value="private" > aws1.txt
 cat aws1.txt
 
-aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 22 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 22 --cidr $myip/32
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 80 --cidr $myip/32
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 22 --cidr $CIDRPublic
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 443 --cidr $myip/32
+aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol icmp --port -1 --source-group $SGNat
 aws ec2 authorize-security-group-ingress --group-id $SGPriv --protocol tcp --port 8080 --source-group $SGPub
 
 aws ec2 run-instances --image-id ami-0af25d0df86db00c1 --count 1 --instance-type t2.micro --key-name test --security-group-ids $SGPriv --subnet-id $privsubnetid > aws1.txt
@@ -85,7 +89,7 @@ SGNat=`egrep GroupId aws1.txt | cut -d":" -f2 | sed 's/"//g' | sed 's/,//g' | cu
 aws ec2 create-tags --resources $SGNat --tags Key=Name,Value="nat" > aws1.txt
 cat aws1.txt
 aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 80 --cidr $CIDRPublic
-aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 22 --cidr 0.0.0.0/0
+aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 22 --cidr $myip/32
 aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol tcp --port 443 --cidr $CIDRPrivate
 aws ec2 authorize-security-group-ingress --group-id $SGNat --protocol icmp --port -1 --cidr $CIDRPrivate
 
